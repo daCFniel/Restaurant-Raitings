@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- meta elements -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="author" content="Daniel Bielech ~ db662">
+    <title>Web Development - Assignment 2</title>
+
+    <!-- import jquery library -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+    
+    <!-- js and jquery code-->
+    <script>     
+        /**
+         * Function run after first page load. 
+         */
+        $(document).ready(function(){
+            // Show page number 1 by default.
+            showPageByNumber(1);
+            // Create buttons for simple pagination.
+            generatePageButtons();
+
+            // Add click event to search button.
+            $("#search-button").click(function() { 
+                showPageByName($("#search-box").val());
+            });
+
+            // Define custom pop-up window to make the rating info more user-friendly.
+            // When the user clics 'x', close the pop-up.
+            $(".close").click(function() {
+                $("#myPopup").css("display", "none");
+            });
+            // When the user clicks anywhere outside of the pop-up, close it.
+            $(window).click(function(e) {
+                if (e.target == $("#myPopup")[0]) {
+                    $("#myPopup").css("display", "none");
+                }
+            });
+        });
+
+        /**
+         * Perform an additional AJAX request to find out the total number of 
+         * pages of the inspection results that are available.
+         * Then create a row of buttons, one for each page.
+         * Each button is labelled with a page number, and when clicked, displays the content of that page.
+         */  
+        function generatePageButtons() {
+            $.get({
+                url: "https://www.cs.kent.ac.uk/people/staff/yh/co539/A2-data/hygiene.php?op=pages",
+                dataType: 'json',
+                success: function(data) {
+                    for (let i = 1; i <= data.pages; i++) {
+                        $("#buttons").append("<button onclick=\"showPageByNumber(" + i + ")\">" + i +"</button>");
+                    } 
+                }
+            });
+        }
+
+        /**
+         * Prform an AJAX request to the server-side script 
+         * to fetch the results of the requested page, 
+         * and display the results in the table. 
+         * @param pageNumber The requested page index.
+         */
+        function showPageByNumber(pageNumber) {
+            $.get({
+                url: "https://www.cs.kent.ac.uk/people/staff/yh/co539/A2-data/hygiene.php?op=get&page=" + pageNumber,
+                dataType: 'json',
+                success: function(data) {
+                    emptyTable(); // Empty the results table.
+                    displayRows(data);
+                    }
+            });
+        }
+
+        /**
+         * Perform an AJAX request to the server-side script
+         * to fetch the results of the searched name, 
+         * and display the search results in the table.
+         * @param businessName The business name to be searched.
+         */
+        function showPageByName(businessName) {
+            $.get({
+                url: "https://www.cs.kent.ac.uk/people/staff/yh/co539/A2-data/hygiene.php?op=search&name=" + businessName,
+                dataType: 'json',
+                success: function(data) {
+                    emptyTable(); // Empty the results table.
+                    displayRows(data);
+                    // If no rating is found for the selected business, alert.
+                    if ($('#hygiene-table tr').length == 1) {
+                        alert("No results for given name");
+                    }
+                    }
+            });
+        }
+
+        /**
+         * Display given data in the table.
+         * Data consists of business’s name, address, type, the hygiene rating 
+         * and the date when the inspection was carried out. 
+         * @param data Given data.
+         */
+        function displayRows(data) {
+            emptyTable(); // Empty the results table.
+                $("#hygiene-table").append("<tr><th>Name</th><th>Address</th><th>Type</th>"
+                    + "<th>Hygiene Rating</th><th>Date</th><th>Customer Rating</th></tr>");  // Append headers.
+                for (let i = 0; i < data.length; i++) { // Append rows with data.
+                    $("#hygiene-table").append("<tr><td>" + data[i].name + "</td>" +
+                    "<td>" + data[i].address + "</td>" + "<td>" + data[i].type + "</td>" +                          
+                    "<td>" + data[i].rating + "</td>" + "<td>" + data[i].date + "</td>"  +
+                    '<td> <button class="rating-button" onclick="showRating(\'' + data[i].name.replace(/'/g, "\\'") + '\',\'' + 
+                    data[i].address.replace(/'/g, "\\'") + '\')">Show</button> </td></tr>'); // Replace method to escape apostrophe in names such as: Sainsbury's.
+                }
+        }
+
+        /**
+         * Empty the results table.
+         */
+        function emptyTable() {
+            $("#table-body").empty();
+        }
+
+        /**
+         * Perform an AJAX request to the server-side script 
+         * and displays in a pop-up window the average rating 
+         * and the total number of customer ratings 
+         * for the business with given name and address.
+         * @param name Given name.
+         * @param address Given address.
+         */
+        function showRating(name, address) {
+            $.get({
+                url: "https://www.cs.kent.ac.uk/people/staff/yh/co539/A2-data/rating.php?business=" + name,
+                dataType: 'json',
+                success: function(data) {
+                    // Allows to keep information if the matching rating has been found.
+                    let ratingFound = false;
+                    for (let i = 0; i < data.length; i++) {
+                        // Split address retreived from server to smaller parts, so the street can be matched.
+                        let addressParts = data[i].address.split(",");
+                        if (address.includes(addressParts[0])) {
+                            $(".popup-content p:first").html("<b>" + data[i].business + "</b>" + "\n\nRating: " 
+                            + data[i].rating + "\nNumber of ratings: " + data[i].total).wrap('<pre />');
+                            ratingFound = true;
+                        }
+                    }
+                    // Show popup.
+                    $("#myPopup").css("display", "block");
+                    // If rating hasn't been found, alert. 
+                    if (!ratingFound) {
+                        $(".popup-content p:first").text("Rating not found.");
+                    }
+                }
+            });
+        }
+    </script>
+
+    <!-- css code-->
+    <style>
+        /* Import google font */
+        @import url('https://fonts.googleapis.com/css2?family=Lato&display=swap');
+
+        body {
+            margin: 0;
+            background-color: rgb(255, 255, 255);
+            font-size: 15px;
+            font-family: 'Lato', sans-serif;
+        }
+        
+        h1 {
+            color: rgb(0, 0, 0);
+            text-align: center;
+        }
+
+        form {
+            text-align: center;
+        }
+
+        #buttons {
+            text-align: center;
+            padding-top: 20px;
+            padding-bottom: 20px;
+        }
+
+        #buttons button:hover, #buttons button:focus {
+            background: rgb(160, 189, 233);
+            border: 2px solid black;  
+            transition: all .4s ease-in;
+        }
+
+        button {
+            cursor: pointer;
+        }
+
+        .rating-button:hover {
+            background: rgb(212, 214, 53);
+            border: 2px solid black;  
+            transition: all .2s ease-in; 
+        }
+
+        table {  
+            color: #333;
+            width: 70%; 
+            border-collapse: collapse; 
+            border-spacing: 0; 
+            margin-left:auto;
+            margin-right:auto;
+            margin-top:0;
+            margin-bottom:50px;
+         
+        }
+
+        td, th {  
+            border: 1px solid transparent; /* Transparent borders */
+            height: 50px; 
+            width: 12%;
+        }
+
+        th {  
+            background: #1d2e66; 
+            color: white;
+        }
+
+        td {  
+            text-align: center;
+        }
+
+        /* nth-child(1) returns the first column */
+        td:nth-child(1) {
+            font-weight: bold;
+        }
+
+        /* Cells in even rows (2,4,6...) are one color */        
+        tr:nth-child(even) td { background: #eeecec; }   
+
+        /* Cells in odd rows (1,3,5...) are another */        
+        tr:nth-child(odd) td { background: #d8d8d8; } 
+
+        #footer {
+            width: 100%;
+            text-align: center;
+            background: #1d2463;
+            color: #e9e9e9;
+            font-size: 14px;
+            bottom: 0; 
+            position: fixed;  
+        }
+
+        /* Custom popup (with dark background) */
+        .popup {
+            display: none; /* Hidden by default */
+            position: fixed; /* Stay in place */
+            z-index: 1; /* Sit on top */
+            left: 0;
+            top: 0;
+            width: 100%; /* Full width */
+            height: 100%; /* Full height */
+            overflow: auto; /* Enable scroll if needed */
+            background-color: rgb(0,0,0); /* Fallback color */
+            background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+        }
+
+        /* Popup box */
+        .popup-content {
+            background-color: #fefefe;
+            margin: 15% auto; /* 15% from the top and centered */
+            padding: 20px;
+            border: 1px solid #887;
+            width: 30%; 
+        }
+
+        /* Popup close button */
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .close:hover, .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>Results of the hygiene inspections of businesses serving food in Maidstone</h1>
+ 
+    <form id="search-form" onsubmit="return false">
+        <label for="searchbox"><b>Business name:</b></label>
+        <input type="search" id="search-box" required>
+        <button id="search-button">Search</button>
+    </form>
+
+    <div id="buttons">
+    </div>
+
+    <table id="hygiene-table">
+        <tbody id="table-body">
+        </tbody>
+    </table>
+    
+    <div id="footer">
+	    Hygiene inspections and customer's ratings - Web Development Assignment 2 ~ Daniel B.
+        &copy &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp 
+        “Nothing goes perfectly, especially when you're opening a restaurant.”  ~ <b><i>Bobby Flay</i></b> 
+    </div>
+
+    <!-- Custom popup  -->
+    <div id="myPopup" class="popup">
+        <!-- Popup content -->
+        <div class="popup-content">
+            <span class="close">&times;</span>
+            <p></p>
+        </div>
+    </div>
+</body>
+</html>
